@@ -1,7 +1,3 @@
-from common.numpy_fast import clip
-from selfdrive.car.ford.values import MAX_ANGLE
-from cereal import car
-
 def fordchecksum(cnt, speed):
   # Checksum is 256 - cnt - speed - 4 with bitwise shifting and rounding on the speed.
   speed = int(round(speed / 0.01, 2))

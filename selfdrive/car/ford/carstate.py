@@ -2,7 +2,7 @@ from cereal import car
 from opendbc.can.parser import CANParser
 from selfdrive.config import Conversions as CV
 from selfdrive.car.interfaces import CarStateBase
-from selfdrive.car.ford.values import DBC, SPEED_FACTOR
+from selfdrive.car.ford.values import DBC
 
  #WHEEL_RADIUS = 0.33
 GearShifter = car.CarState.GearShifter
@@ -10,7 +10,6 @@ GearShifter = car.CarState.GearShifter
 class CarState(CarStateBase):
   def update(self, cp, cp_cam):
     ret = car.CarState.new_message()
-    speed_factor = SPEED_FACTOR[self.CP.carFingerprint]
     #ret.wheelSpeeds.rr = cp.vl["WheelSpeed"]['WhlRr_W_Meas'] * CV.MPH_TO_MS
     #ret.wheelSpeeds.rl = cp.vl["WheelSpeed"]['WhlRl_W_Meas'] * CV.MPH_TO_MS
     #ret.wheelSpeeds.fr = cp.vl["WheelSpeed"]['WhlFr_W_Meas'] * CV.MPH_TO_MS
@@ -20,14 +19,14 @@ class CarState(CarStateBase):
     ret.standstill = not ret.vEgoRaw > 0.001
     ret.steeringAngleDeg = cp.vl["BrakeSnData_5"]['SteWhlRelInit_An_Sns']
     ret.steeringPressed = cp_cam.vl["Lane_Keep_Assist_Status"]['LaHandsOff_B_Actl'] == 0
-    ret.steerError = cp_cam.vl["Lane_Keep_Assist_Status"]['LaActDeny_B_Actl'] == 1
+    ret.steerWarning = False
+    ret.steerError = False # cp_cam.vl["Lane_Keep_Assist_Status"]['LaActDeny_B_Actl'] == 1
     ret.cruiseState.speed = cp.vl["Cruise_Status"]['Set_Speed'] * CV.MPH_TO_MS
     ret.cruiseState.enabled = not (cp.vl["Cruise_Status"]['Cruise_State'] in [0, 3])
     ret.cruiseState.available = cp.vl["Cruise_Status"]['Cruise_State'] != 0
     ret.gas = cp.vl["EngineData_14"]['ApedPosScal_Pc_Actl'] / 100.
     ret.gasPressed = ret.gas > 1e-6
     ret.brakePressed = cp.vl["Cruise_Status"]['Brake_Drv_Appl'] == 2
-    ret.brakeLights = bool(cp.vl["BCM_to_HS_Body"]['Brake_Lights'])
     ret.genericToggle = bool(cp.vl["Steering_Buttons"]['Dist_Incr'])
     self.latLimit = cp_cam.vl["Lane_Keep_Assist_Status"]['LatCtlLim_D_Stat']
     self.lkas_state = cp_cam.vl["Lane_Keep_Assist_Status"]['LaActAvail_D_Actl']
@@ -45,7 +44,6 @@ class CarState(CarStateBase):
     self.cruise_mode = cp.vl["ACCDATA_3"]['AccMemEnbl_B_RqDrv']
     ret.stockFcw = cp.vl["ACCDATA_3"]['FcwVisblWarn_B_Rq'] !=0
     ret.stockAeb = self.cruise_mode !=0 and ret.cruiseState.enabled and ret.stockFcw
-    self.engineRPM = cp.vl["EngineData_14"]['EngAout_N_Actl'] 
     #Gear Shifter
     gear = cp.vl["TransGearData"]['GearLvrPos_D_Actl']
     if gear == 0:

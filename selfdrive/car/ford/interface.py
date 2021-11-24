@@ -1,16 +1,10 @@
 #!/usr/bin/env python3
 from cereal import car
-from selfdrive.swaglog import cloudlog
 from selfdrive.config import Conversions as CV
 #from selfdrive.controls.lib.drive_helpers import EventTypes as ET, create_event
 from selfdrive.car.ford.values import MAX_ANGLE, CAR
-from selfdrive.car import STD_CARGO_KG, scale_rot_inertia, scale_tire_stiffness, gen_empty_fingerprint
+from selfdrive.car import STD_CARGO_KG, scale_rot_inertia, scale_tire_stiffness, gen_empty_fingerprint, get_safety_config
 from selfdrive.car.interfaces import CarInterfaceBase
-from common.op_params import opParams
-from common.params import Params
-
-op_params = opParams()
-apaAcknowledged = Params().get('apaAcknowledged') == b'1'
 
 class CarInterface(CarInterfaceBase):
 
@@ -22,8 +16,8 @@ class CarInterface(CarInterfaceBase):
   def get_params(candidate, fingerprint=gen_empty_fingerprint(), car_fw=[]): # pylint: disable=dangerous-default-value
     ret = CarInterfaceBase.get_std_params(candidate, fingerprint)
     ret.carName = "ford"
-    ret.communityFeature = True                              
-    ret.safetyModel = car.CarParams.SafetyModel.ford
+    ret.communityFeature = False                              
+    ret.safetyConfigs = [get_safety_config(car.CarParams.SafetyModel.ford)]
     ret.dashcamOnly = False
     
     if candidate in [CAR.F150, CAR.F150SG]:
@@ -98,10 +92,7 @@ class CarInterface(CarInterfaceBase):
                                                                          tire_stiffness_factor=tire_stiffness_factor)
 
     ret.steerControlType = car.CarParams.SteerControlType.angle
-    longToggle = Params().get('OpenpilotLongitudinal') == b'1'
-    ret.enableCamera = True
-    ret.openpilotLongitudinalControl = ret.enableCamera and longToggle
-    cloudlog.warning("ECU Camera Simulated: %r", ret.enableCamera)
+    ret.openpilotLongitudinalControl = True
 
     return ret
 
@@ -115,17 +106,9 @@ class CarInterface(CarInterfaceBase):
 
     #ret = car.CarState.new_message()               
     ret.canValid = self.cp.can_valid and self.cp_cam.can_valid
-    ret.engineRPM = self.CS.engineRPM
 
     # events
     events = self.create_common_events(ret)
-    if not apaAcknowledged:
-      events.add(car.CarEvent.EventName.apaNotAcknowledged)
-    if self.CC.enabled_last:
-      if self.CS.sappHandshake == 0 or self.CS.sappHandshake == 1:
-        events.add(car.CarEvent.EventName.pscmHandshaking)
-      if self.CS.sappHandshake == 3:
-        events.add(car.CarEvent.EventName.pscmLostHandshake)
     ret.events = events.to_msg()
 
     self.CS.out = ret.as_reader()
